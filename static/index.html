@@ -265,11 +265,14 @@ function wsSetup() {
     };
     socket.onmessage = function(msg) {
         try {
-            let entity = JSON.parse(msg.data);
-            debug(`WebSocket Recv: ${entity.name}`);
+            let remoteWorld = JSON.parse(msg.data);
+            for (let name of Object.keys(remoteWorld)) {
+                debug(`WebSocket Recv: ${name}`);
 
-            // Receive entities on server
-            world[entity.name] = entity;
+                // Receive entities on server
+                world[name] = remoteWorld[name];
+            }
+
         } catch (e) {
             alert(`socket on message: ${e}`);
         }

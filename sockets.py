@@ -66,10 +66,9 @@ subscribers = []
 def set_listener(entity, data):
     '''Update all listening websockets'''
     # Can't send entity without name as receiving order is not guaranteed
-    data['name'] = entity
     for subscriber in subscribers:
         try:
-            subscriber.send(json.dumps(data))
+            subscriber.send(json.dumps({entity: data}))
         except WebSocketError as e:
             print(e)
 
@@ -83,18 +82,18 @@ def hello():
 def read_ws(ws, client):
     '''A greenlet function that reads from the websocket and updates the world'''
     # Read websocket updates
-    data = None
-    while True:
-        data += ws.receive()
-        if not data:
-            break;
+    data = ws.receive()
+    if data is None:
+        return  # Connection closed
 
     try:
-        # TODO: Update the world
-        world_update = json.loads(data)
+        world = json.loads(data)
+        for entity in world:
+            name = entity
+            myWorld.set(name, world[entity])
     except json.JSONDecodeError:
         # Bad/No response; do nothing
-        return
+        return print('Bad JSON received')
 
 @sockets.route('/subscribe')
 def subscribe_socket(ws):
@@ -104,11 +103,15 @@ def subscribe_socket(ws):
     subscribers.append(ws)
 
     # Send all existing entities
-    for entity in myWorld.world().values():
-        ws.send(json.dumps(entity))
+    for entity, data in myWorld.world():
+        ws.send(json.dumps({entity: data}))
 
-    while True:  # Keep socket alive
-        sleep(0.1)
+    try:
+        while True:  # Keep socket alive
+            sleep(0.1)
+            read_ws(ws, None)
+    finally:
+        ws.close()
 
 # I give this to you, this is how you get the raw body/data portion of a post in flask
 # this should come with flask but whatever, it's not my project.
