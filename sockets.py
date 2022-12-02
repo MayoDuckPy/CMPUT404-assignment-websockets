@@ -13,37 +13,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import flask
-from flask import Flask, request
-from flask_sockets import Sockets
-import gevent
-from gevent import queue
-import time
 import json
-import os
 
-app = Flask(__name__)
-sockets = Sockets(app)
+from flask import Flask, request, render_template
+from flask_sockets import Sockets
+from geventwebsocket.exceptions import WebSocketError
+from time import sleep
+
+app = Flask(__name__, template_folder='static')
 app.debug = True
 
+sockets = Sockets(app)
+
 class World:
+    __slots__ = ['listeners', 'space']
+
     def __init__(self):
         self.clear()
         # we've got listeners now!
-        self.listeners = list()
-        
+        self.listeners = []
+
     def add_set_listener(self, listener):
-        self.listeners.append( listener )
+        self.listeners.append(listener)
 
     def update(self, entity, key, value):
-        entry = self.space.get(entity,dict())
+        entry = self.space.get(entity, {})
         entry[key] = value
         self.space[entity] = entry
-        self.update_listeners( entity )
+        self.update_listeners(entity)
 
     def set(self, entity, data):
         self.space[entity] = data
-        self.update_listeners( entity )
+        self.update_listeners(entity)
 
     def update_listeners(self, entity):
         '''update the set listeners'''
@@ -51,38 +52,63 @@ class World:
             listener(entity, self.get(entity))
 
     def clear(self):
-        self.space = dict()
+        self.space = {}
 
     def get(self, entity):
-        return self.space.get(entity,dict())
-    
+        return self.space.get(entity, {})
+
     def world(self):
         return self.space
 
-myWorld = World()        
+myWorld = World()
+subscribers = []
 
-def set_listener( entity, data ):
-    ''' do something with the update ! '''
+def set_listener(entity, data):
+    '''Update all listening websockets'''
+    # Can't send entity without name as receiving order is not guaranteed
+    data['name'] = entity
+    for subscriber in subscribers:
+        try:
+            subscriber.send(json.dumps(data))
+        except WebSocketError as e:
+            print(e)
 
-myWorld.add_set_listener( set_listener )
-        
+myWorld.add_set_listener(set_listener)
+
 @app.route('/')
 def hello():
-    '''Return something coherent here.. perhaps redirect to /static/index.html '''
-    return None
+    '''Show main content'''
+    return render_template('index.html')
 
-def read_ws(ws,client):
+def read_ws(ws, client):
     '''A greenlet function that reads from the websocket and updates the world'''
-    # XXX: TODO IMPLEMENT ME
-    return None
+    # Read websocket updates
+    data = None
+    while True:
+        data += ws.receive()
+        if not data:
+            break;
+
+    try:
+        # TODO: Update the world
+        world_update = json.loads(data)
+    except json.JSONDecodeError:
+        # Bad/No response; do nothing
+        return
 
 @sockets.route('/subscribe')
 def subscribe_socket(ws):
     '''Fufill the websocket URL of /subscribe, every update notify the
-       websocket and read updates from the websocket '''
-    # XXX: TODO IMPLEMENT ME
-    return None
+       websocket and read updates from the websocket'''
+    # NOTE: This function runs on its own worker thread
+    subscribers.append(ws)
 
+    # Send all existing entities
+    for entity in myWorld.world().values():
+        ws.send(json.dumps(entity))
+
+    while True:  # Keep socket alive
+        sleep(0.1)
 
 # I give this to you, this is how you get the raw body/data portion of a post in flask
 # this should come with flask but whatever, it's not my project.
@@ -91,32 +117,46 @@ def flask_post_json():
        that they get in the way of sane operation!'''
     if (request.json != None):
         return request.json
-    elif (request.data != None and request.data.decode("utf8") != u''):
-        return json.loads(request.data.decode("utf8"))
+    elif (request.data != None and request.data.decode() != u''):
+        return json.loads(request.data.decode())
     else:
         return json.loads(request.form.keys()[0])
 
-@app.route("/entity/<entity>", methods=['POST','PUT'])
+@app.route("/entity/<entity>", methods=['POST', 'PUT'])
 def update(entity):
     '''update the entities via this interface'''
-    return None
+    # Assumes entities don't have an enforced schema
+    # Assumes request data is json-compatible
+    data = request.json if request.json else {}
+    if request.method == 'POST':
+        myWorld.set(entity, data)
+    elif request.method == 'PUT':
+        if (type(data) is not dict):
+            # Will not be tested for
+            return
 
-@app.route("/world", methods=['POST','GET'])    
+        for key, val in data.items():
+            myWorld.update(entity, key, val)
+
+    return data
+
+@app.route("/world", methods=['GET', 'POST'])
 def world():
-    '''you should probably return the world here'''
-    return None
+    '''Return the world'''
+    # No specification on handling differences for GET and POST so just return world
+    return myWorld.world()
 
-@app.route("/entity/<entity>")    
+@app.route("/entity/<entity>")
 def get_entity(entity):
     '''This is the GET version of the entity interface, return a representation of the entity'''
-    return None
+    return myWorld.get(entity)
 
-
-@app.route("/clear", methods=['POST','GET'])
+@app.route("/clear", methods=['GET', 'POST'])
 def clear():
     '''Clear the world out!'''
-    return None
-
+    # Again, no specification on handling POST and GET so both behave the same
+    myWorld.clear()
+    return myWorld.world()
 
 
 if __name__ == "__main__":

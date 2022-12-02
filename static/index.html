@@ -122,15 +122,22 @@ function getPosition(e) {
 	}
 }
 
-function addEntity(entity, data) {
-    world[entity] = data;
-    drawNextFrame(); // (but should we?)
-    // TODO: Send a XHTML Request that updates the entity you just modified!
+async function addEntity(entity, data) {
+    let res = await fetch(`/entity/${entity}`, {
+        method: 'POST',
+        cache: 'no-cache',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
 }
+
 let counter = 0;
-function addEntityWithoutName(data) {
+async function addEntityWithoutName(data) {
+    //let name = "X"+Math.floor((Math.random()*100)+1);
     let name = "X" + (counter++) % 100;
-    addEntity(name, data);
+    await addEntity(name, data);
 }
 
 // canvas + mouse/touch is complicated
@@ -242,8 +249,8 @@ mouse.mousedraggers.push(function(x, y, clicked, e) {
     addEntityWithoutName({'x': x, 'y': y, 'colour': '#8ccf7e', 'radius': 10});
 });
 
-function update() {
-    drawFrame();
+async function update() {
+    renderFrame();
 }
 
 function wsSetup() {
@@ -251,14 +258,18 @@ function wsSetup() {
     socket = new WebSocket(url);
     socket.onopen = function() {
         // TODO: What are you going to do here?
+        // Answer: Nothing
     };
     socket.onerror = function(msg) {
         debug(`WebSocket Error: ${msg.data}`);
     };
     socket.onmessage = function(msg) {
         try {
-            debug(`WebSocket Recv: ${msg.data}`);
-            // TODO: What are you going to do here?
+            let entity = JSON.parse(msg.data);
+            debug(`WebSocket Recv: ${entity.name}`);
+
+            // Receive entities on server
+            world[entity.name] = entity;
         } catch (e) {
             alert(`socket on message: ${e}`);
         }
