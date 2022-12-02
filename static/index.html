@@ -1,19 +1,19 @@
 <!DOCTYPE HTML>
-<html> 
-  <head> 
-    <title>Websockets Assignment</title> 
-    <meta charset="utf-8" /> 
+<html>
+  <head>
+    <title>Websockets Assignment</title>
+    <meta charset="utf-8" />
     <meta content='width=device-width; height=device-height; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;' name='viewport' />
     <meta name="viewport" content="width=device-width" />
     <meta name="license" content="
         Copyright 2013 Google, Abram Hindle
-        
+
         Licensed under the Apache License, Version 2.0 (the "License");
         you may not use this file except in compliance with the License.
         You may obtain a copy of the License at
-        
+
             http://www.apache.org/licenses/LICENSE-2.0
-        
+
         Unless required by applicable law or agreed to in writing, software
         distributed under the License is distributed on an "AS IS" BASIS,
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,59 +21,62 @@
         limitations under the License.
     "/>
     <script src="json2.js"></script>
-  </head> 
-  <body bgcolor="white" height="100%" width="100%"> 
+  </head>
+  <body bgcolor="#dadada" height="100%" width="100%">
     <div id="debug"></div>
-    <canvas id="c" width="100%" height="100%" style="-webkit-tap-highlight-color: transparent;"></canvas> 
+    <canvas id="c" width="100%" height="100%" style="-webkit-tap-highlight-color: transparent;"></canvas>
 
-    <script>
-      // Fix me
-var canvas = document.getElementById('c');
-var host = window.location.host;
-var context = canvas.getContext("2d");
-var W = canvas.width  = window.innerWidth-6;
-var H = canvas.height = window.innerHeight-50;
-var wscounter = 0;
-var socket;
+</body>
+</html>
+
+<script>
+// TODO: Fix me
+let canvas = document.getElementById('c');
+let host = window.location.host;
+let context = canvas.getContext("2d");
+let W = canvas.width  = window.innerWidth-6;
+let H = canvas.height = window.innerHeight-50;
+let wscounter = 0;
+let socket;
 
 function debug(str) {
-    var debugDiv = document.getElementById('debug');
+    let debugDiv = document.getElementById('debug');
     debugDiv.innerHTML = "" + str;
 }
 debug("Test");
 
-world = {};
+let world = {};
 
-//XXX: TODO Make this prettier!
-function drawCircle(context,entity) {
+function drawCircle(context, entity) {
     with(context) {
-        beginPath();                
+        beginPath();
         lineWidth = 3;
-        var x = entity["x"];
-        var y = entity["y"];
-        //moveTo(x,y);
-        fillStyle = entity["colour"];
+        let x = entity.x;
+        let y = entity.y;
+        //moveTo(x, y);
+        fillStyle = entity.colour;
         strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
-        stroke();                                
+        arc(x, y, (entity.radius) ? entity.radius : 50, 0, 2.0 * Math.PI, false);
+        fill();
+        stroke();
     }
 }
 
 function prepEntity(entity) {
-    if (!entity["colour"]) {
-        entity["colour"] = "#FF0000";
+    if (!entity.colour) {
+        entity.colour = "#e57474";  // Red
     }
-    if (!entity["radius"]) {
-        entity["radius"] = 50;
+    if (!entity.radius) {
+        entity.radius = 25;
     }
     return entity;
 }
 
 function clearFrame() {
     with(context) {
-	moveTo(0,0);
-	fillStyle = "#000";
-	fillRect(0,0,W,H);
+	moveTo(0, 0);
+	fillStyle = "#141b1e";
+	fillRect(0, 0, W, H);
     }
 
 }
@@ -81,13 +84,13 @@ function clearFrame() {
 // This actually draws the frame
 function renderFrame() {
     clearFrame();
-    for (var key in world) {
-        var entity = world[key];
-        drawCircle(context,prepEntity(entity));
+    for (let key in world) {
+        let entity = world[key];
+        drawCircle(context, prepEntity(entity));
     }
 }
 
-var drawNext = true;
+let drawNext = true;
 // Signals that there's something to be drawn
 function drawNextFrame() {
     drawNext = true;
@@ -106,40 +109,38 @@ function drawFrame() {
 // So use this code, it works well on multitouch devices as well.
 
 function getPosition(e) {
-	if ( e.targetTouches && e.targetTouches.length > 0) {
-		var touch = e.targetTouches[0];
-		var x = touch.pageX  - canvas.offsetLeft;
-		var y = touch.pageY  - canvas.offsetTop;
-		return [x,y];
+	if (e.targetTouches && e.targetTouches.length > 0) {
+		let touch = e.targetTouches[0];
+		let x = touch.pageX  - canvas.offsetLeft;
+		let y = touch.pageY  - canvas.offsetTop;
+		return [x, y];
 	} else {
-		var rect = e.target.getBoundingClientRect();
-		var x = e.offsetX || e.pageX - rect.left - window.scrollX;
-		var y = e.offsetY || e.pageY - rect.top  - window.scrollY;
-		var x = e.pageX  - canvas.offsetLeft;
-		var y = e.pageY  - canvas.offsetTop;
-		return [x,y];
+		let rect = e.target.getBoundingClientRect();
+		let x = e.pageX  - canvas.offsetLeft;
+		let y = e.pageY  - canvas.offsetTop;
+		return [x, y];
 	}
 }
 
 function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
-    //XXX: Send a XHTML Request that updates the entity you just modified!
+    // TODO: Send a XHTML Request that updates the entity you just modified!
 }
-var counter = 0;
+let counter = 0;
 function addEntityWithoutName(data) {
-    var name = "X"+(counter++)%100;
-    addEntity(name,data);
+    let name = "X" + (counter++) % 100;
+    addEntity(name, data);
 }
 
-// canvas + mouse/touch is complicated 
+// canvas + mouse/touch is complicated
 // I give you this because well the mouse/touch stuff is a total
 // pain to get right. This has some out of context bug too.
 mouse = (function() {
-    // Now this isn't the most popular way of doing OO in 
+    // Now this isn't the most popular way of doing OO in
     // Javascript, but it relies on lexical scope and I like it
     // This isn't 301 so I'm not totally bound to OO :)
-    var self;    
+    let self;
     self = {
         clicked: 0,
         // these are listener lists append to them
@@ -147,15 +148,15 @@ mouse = (function() {
         mousedraggers: [],
         mousedowners: [],
         mouseuppers: [],
-        callListeners: function(listeners,x,y,clicked,e) {
+        callListeners: function(listeners, x, y, clicked, e) {
             for (i in listeners) {
-                listeners[i](x,y,clicked,e);
+                listeners[i](x, y, clicked, e);
             }
         },
         wasClicked: function(e) {
-            var pos = getPosition(e);
-            var x = pos[0];
-            var y = pos[1];
+            let pos = getPosition(e);
+            let x = pos[0];
+            let y = pos[1];
             if (x >= 0 && x <= W && y >= 0 && y <= H) {
                 return 1;
             } else {
@@ -165,54 +166,54 @@ mouse = (function() {
         mousedown: function(e) {
             e.preventDefault();
             if (self.wasClicked(e)) {
-                var pos = getPosition(e);
-                var x = pos[0];
-                var y = pos[1];
+                let pos = getPosition(e);
+                let x = pos[0];
+                let y = pos[1];
 	        self.clicked = 1;
-                self.callListeners(self.mousedowners,x,y,self.clicked,e);
-                //addEntityWithoutName({'x':x,'y':y,'colour':'red'});
+                self.callListeners(self.mousedowners, x, y, self.clicked, e);
+                //addEntityWithoutName({'x': x, 'y': y, 'colour': '#e57474'});
             }
         },
         mouseup: function(e) {
             e.preventDefault();
             //alert(getPosition(e));
             if (self.wasClicked(e)) {
-                var pos = getPosition(e);
-                var x = pos[0];
-                var y = pos[1];
-	        //self.poppin(x,y);
+                let pos = getPosition(e);
+                let x = pos[0];
+                let y = pos[1];
+	        //self.poppin(x, y);
 	        self.clicked = 0;
                 self.selected = -1;
-                self.callListeners(self.mouseuppers,x,y,self.clicked,e);
-                //addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
+                self.callListeners(self.mouseuppers, x, y, self.clicked, e);
+                //addEntityWithoutName({'x': x, 'y': y, 'colour': '#67b0e8'});
             }
         },
         touchstart: function(e) {
-            self.lasttouch = e;                                         
+            self.lasttouch = e;
             return self.mousedown(e);
         },
 	touchend: function(e) {
-            var touch = (self.lasttouch)?self.lasttouch:e;
+            let touch = (self.lasttouch)?self.lasttouch: e;
             return self.mouseup(touch);
 	},
 	mousemove: function(e) {
             e.preventDefault();
             if (self.wasClicked(e)) {
-                var pos = getPosition(e);
-                var x = pos[0];
-                var y = pos[1];
+                let pos = getPosition(e);
+                let x = pos[0];
+                let y = pos[1];
 	        if (self.clicked != 0) {
-	            //self.squeakin(x,y);
-                    self.callListeners(self.mousedraggers,x,y,self.clicked,e);
+	            //self.squeakin(x, y);
+                    self.callListeners(self.mousedraggers, x, y, self.clicked, e);
 	        }
-                self.callListeners(self.mousemovers,x,y,self.clicked,e);
-            }            
+                self.callListeners(self.mousemovers, x, y, self.clicked, e);
+            }
 	},
 	touchmove: function(e) {
-            self.lasttouch = e;                                         
+            self.lasttouch = e;
             return self.mousemove(e);
 	},
-		                                   
+
         // Install the mouse listeners
 	mouseinstall: function() {
             canvas.addEventListener("mousedown",  self.mousedown, false);
@@ -229,54 +230,43 @@ mouse = (function() {
 })();
 
 // Add the application specific mouse listeners!
-//XXX: TODO Make these prettier!
-mouse.mousedowners.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
+mouse.mousedowners.push(function(x, y, clicked, e) {
+    addEntityWithoutName({'x': x, 'y': y, 'colour': '#67b0e8'});
 });
 
-mouse.mouseuppers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'red'});
+mouse.mouseuppers.push(function(x, y, clicked, e) {
+    addEntityWithoutName({'x': x, 'y': y, 'colour': '#e57474'});
 });
 
-mouse.mousedraggers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'green',
-                          'radius':10});
+mouse.mousedraggers.push(function(x, y, clicked, e) {
+    addEntityWithoutName({'x': x, 'y': y, 'colour': '#8ccf7e', 'radius': 10});
 });
-
 
 function update() {
     drawFrame();
 }
 
-
 function wsSetup() {
-    var url = "ws://"+host+"/subscribe";   
+    let url = `ws://${host}/subscribe`;
     socket = new WebSocket(url);
     socket.onopen = function() {
-        //XXX: TODO What are you going to do here?
+        // TODO: What are you going to do here?
     };
     socket.onerror = function(msg) {
-        debug("WebSocket Error:" + msg.data);
+        debug(`WebSocket Error: ${msg.data}`);
     };
-    socket.onmessage = function(msg) {  
+    socket.onmessage = function(msg) {
         try {
-            debug("WebSocket Recv:" + msg.data);
-            //XXX: TODO What are you going to do here?            
+            debug(`WebSocket Recv: ${msg.data}`);
+            // TODO: What are you going to do here?
         } catch (e) {
-            alert("socket on message: " + e);
+            alert(`socket on message: ${e}`);
         }
-    }; 
+    };
 }
 
 wsSetup();
 
-
-
-
 // 30 frames per second
-setInterval( update, 1000/30.0);
-
-
-    </script>
-</body>
-</html>
+setInterval(update, 1000/30.0);
+</script>
