@@ -112,6 +112,9 @@ def subscribe_socket(ws):
             sleep(0.1)
             read_ws(ws, None)
             # TODO: Handle socket timeout
+    except WebSocketError:
+        # Websocket may die although it remains functional
+        pass
     finally:
         ws.close()
 
