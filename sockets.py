@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 # Copyright (c) 2013-2014 Abram Hindle
+# Copyright (c) 2022 Michael Huang
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -110,6 +111,7 @@ def subscribe_socket(ws):
         while True:  # Keep socket alive
             sleep(0.1)
             read_ws(ws, None)
+            # TODO: Handle socket timeout
     finally:
         ws.close()
 
